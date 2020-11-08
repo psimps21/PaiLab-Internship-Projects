@@ -456,4 +456,3 @@ if __name__ == '__main__':
     clargs = get_args()
     process_sam_cigstring(clargs)
     print('Finished:', datetime.datetime.now())
-
