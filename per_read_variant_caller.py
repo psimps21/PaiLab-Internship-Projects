@@ -7,9 +7,39 @@ import datetime
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from argparse import ArgumentParser
 
-
+#
 class VCTotalStats:
+    """
+    A class used to track data from the VariantCaller class
+
+    Attributes:
+    _json_list (list): .
+    _read_count (int): number of reads.
+    _total_read_len (int): running sum of read lengths.
+    _total_aligned_bases (int): running sum of aligned bases.
+    _total_inserts (int): running sum of inserted bases.
+    _total_dels (int): running sum of deleted bases.
+    _total_introns (int): running sum of introns.
+    _total_sclips (int): running sum of .
+    _total_snps (dict): running sum of SNPs.
+    """
+
     def __init__(self):
+        """
+        The constructor of VCTotal Stats class.
+
+        Parameters:
+        _json_list (list): .
+        _read_count (int): number of reads.
+        _total_read_len (int): running sum of read lengths.
+        _total_aligned_bases (int): running sum of aligned bases.
+        _total_inserts (int): running sum of inserted bases.
+        _total_dels (int): running sum of deleted bases.
+        _total_introns (int): running sum of introns.
+        _total_sclips (int): running sum of .
+        _total_snps (dict): running sum of SNPs.
+        """
+
         self._json_list = []
         self._read_count = 0
         self._total_read_len = 0
@@ -109,8 +139,24 @@ class VCTotalStats:
 
 
 class ReferenceGen:
-    def __init__(self, reffname):
-        self._ref_file = reffname
+    """
+    A class to hold the reference file
+
+    Attributes:
+        _ref_file: path to reference genome file
+        _chr_dict: dictionary holding the sequences for each chromosome
+
+    """
+    def __init__(self, filepath):
+        """
+        The constructor of the ReferenceGen class
+
+        Parameters:
+            _ref_file: path to reference genome file
+            _chr_dict: dictionary holding the sequences for each chromosome
+        """
+
+        self._ref_file = filepath
         self._chr_dict = self.make_chr_strings()
 
     @property
@@ -118,6 +164,11 @@ class ReferenceGen:
         return self._chr_dict
 
     def make_chr_strings(self):
+        """
+        Generates dictionary with the chromosome header as key and the sequence as a value
+
+        :return: A dictionary of chromosome sequences
+        """
         count = 0
         curr_line = None
         chrdict = {}
@@ -146,12 +197,50 @@ class ReferenceGen:
         return chrdict
 
     def get_chr_seq(self, ref_name):
+        """
+        Retrieves the sequence of chromosome
+
+        :param ref_name: The header of the chomosome sequence
+        :return: The chomosome sequence
+        """
         return self._chr_dict[ref_name]
 
 
 
 class VariantCaller:
+    """
+    A class that perfomrs variant calling
+
+    Attributes:
+        _scvs (csv.writer): a csv.riter object storing data
+        _lcsv csv.writer(): a csv.riter object storing data
+        _read (pysam.AlignedSegment): the AlignedSegment object for a read
+        _read_len (int): length of a read
+        _read_name (str): name of a read
+        _ref_seq (str): the reference sequence
+        _read_seq (str): the read sequence
+        _chr (str): the chromosome header
+        _read_start (int): the read start position in the reference sequence
+        _snp_dict (dict): a dictionary containing  all present types of SNPs
+        _insert_dict (dict): a dictionary containing all insertions
+        _sgap_dict (dict): a dictionary containing  all gaps
+        _sclip_dict (dict): a dictionary containing all short clippings
+        _snp_total (int): total number of SNPs
+        _percent_snps (int): the percentage of bases that are SNPs
+        _type_snp_dict (dict): a dictionary containing the count of all types of SNPs
+
+    """
+
     def __init__(self, read, reference, short_csv, long_csv):
+        """
+        The constructor for the Variant Caller class.
+
+        :param read: an Aligned Segment object
+        :param reference: the ReferenceGen object
+        :param short_csv: csv.writer object for storing data to be written to file
+        :param long_csv: csv.writer object for storing data to be written to file
+        """
+
         self._scsv = short_csv
         self._lcsv = long_csv
         self._read = read
@@ -216,6 +305,11 @@ class VariantCaller:
         return self._snp_total
 
     def gen_dict_str(self, a_dict):
+        """
+
+        :param a_dict:
+        :return:
+        """
         new_str = ''
         for k, v in a_dict.items():
             new_str += k + ':' + v + ';'
@@ -223,6 +317,8 @@ class VariantCaller:
         return new_str[:-1]
 
     def csv_generator(self):
+         """ Writes the date of a read to csv """
+
          self._scsv.writerow([self._read_name, self._read_len, self._chr, self._read_start, self._read.reference_end,
                               self._read.is_reverse, len(self._snp_dict), len(self._del_dict), len(self._insert_dict),
                               len(self._sgap_dict)])
@@ -235,8 +331,9 @@ class VariantCaller:
     def get_snps(self, pairs):
         """
         Update class attributes with snp data
+
         :param pairs: a list of tuples (read_pos, ref_pos)
-        :return: None
+        :return: void
         """
         for read_pos, ref_pos in pairs:
             if ref_pos >= len(self._ref_seq):
@@ -253,6 +350,12 @@ class VariantCaller:
         self._percent_snps = int(round(self._snp_total/self.read_len, 2) * 100)
 
     def analyze_cig_str(self, cig_tups):
+        """
+
+        :param cig_tups: A list of tuples (CIGAR operation, length)
+        :return: void
+        """
+
         cigar_ops = {
             # Match
             0: self.cig_op_0,
@@ -283,9 +386,24 @@ class VariantCaller:
             pair_pos += cig_tup[1]
 
     def cig_op_0(self, pairs):
+        """
+        Calls function to find all SNPs in read
+
+        :param pairs: a tuple of (read position, reference position) For inserts, deletions, skipping either query or
+                        reference position may be None
+        :return: void
+        """
         self.get_snps(pairs)
 
     def cig_op_1(self, pairs):
+        """
+        Find all inserts for the read
+
+        :param pairs: a tuple of (read position, reference position) For inserts, deletions, skipping either query or
+                        reference position may be None
+        :return: void
+        """
+
         self._insert_dict[str(pairs[0][0])] = ''
         for pair in pairs:
             if isinstance(pair[1], int) and pair[1] >= len(self._ref_seq):
@@ -293,6 +411,13 @@ class VariantCaller:
             self._insert_dict[str(pairs[0][0])] += self._read_seq[pair[0]]
 
     def cig_op_2(self, pairs):
+        """
+        Find all deletions for the read
+
+        :param pairs: a tuple of (read position, reference position) For inserts, deletions, skipping either query or
+                        reference position may be None
+        :return: void
+        """
         self._del_dict[str(pairs[0][1])] = ''
         for pair in pairs:
             if pair[1] >= len(self._ref_seq):
@@ -300,6 +425,14 @@ class VariantCaller:
             self._del_dict[str(pairs[0][1])] += self._ref_seq[pair[1]]
 
     def cig_op_3(self, pairs):
+        """
+        Find all gaps in the read
+
+        :param pairs: a tuple of (read position, reference position) For inserts, deletions, skipping either query or
+                        reference position may be None
+        :return: void
+        """
+
         self._sgap_dict[str(pairs[0][1])] = ''
         for pair in pairs:
             if pair[1] >= len(self._ref_seq):
@@ -329,6 +462,13 @@ class VariantCaller:
 
 
 def snp_vc_json_generator(vctotal, data_fname):
+    """
+    Generate a json file containing the dictionaries of SNP data
+    
+    :param vctotal: a VCTotalStats object
+    :param data_fname: name of data file
+    :return: void
+    """
     fname = data_fname + '_PRVCSNP_Data.js'
     cfname = data_fname + 'Concise_PRVCSNP_Data.js'
     with open(fname, 'w') as jfile:
@@ -345,6 +485,13 @@ def snp_vc_json_generator(vctotal, data_fname):
 
 
 def full_vc_json_generator(vctotal, data_fname):
+    """
+    Generate a file containing the dictionaries from the VCTotalStats attributes
+    
+    :param vctotal: a VCTotoalStats object
+    :param data_fname: name of data file
+    :return: void
+    """
     fname = data_fname + '_PRVC_Data.js'
     cfname = data_fname + '_Concise_PRVC_Data.js'
     with open(fname, 'w') as long_doc:
@@ -360,6 +507,13 @@ def full_vc_json_generator(vctotal, data_fname):
 
 
 def process_sam_snps(reffname, *argv):
+    """
+    Generate SNP data for all reads
+    
+    :param reffname: a reference file path
+    :param argv: command line argumants
+    :return: void
+    """
     reference = ReferenceGen(reffname)
     for arg in argv:
         data_total = VCTotalStats()
@@ -380,6 +534,11 @@ def process_sam_snps(reffname, *argv):
 
 
 def get_args():
+    """
+    Defines command line interface instructions
+
+    :return: namespace of command line arguments
+    """
     parser = ArgumentParser(
         description='Parse and store data from cigar strings.')
     parser.add_argument('-o', '--outdir',
@@ -402,6 +561,13 @@ def get_args():
 
 
 def process_sam_cigstring(args):
+    """
+    Executes the calls to analyze bam file and write data to file
+
+    :param args: commandline arguments
+    :return: void
+    """
+
     reference = ReferenceGen(args.reference[0])
 
     for arg in args.bam:
@@ -456,3 +622,4 @@ if __name__ == '__main__':
     clargs = get_args()
     process_sam_cigstring(clargs)
     print('Finished:', datetime.datetime.now())
+
